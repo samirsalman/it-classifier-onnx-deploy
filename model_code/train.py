@@ -23,15 +23,15 @@ def train(
     embedding_size: int = Option(256, "-s", "--emb-size"),
     lr: float = Option(2e-2, "-l", "--lr"),
     max_epochs: int = Option(5, "-e", "--epochs"),
-    gpu: bool = Option(True, "-g", "--gpu"),
+    gpu: bool = Option(False, "-g", "--gpu"),
 ):
     train = pd.read_csv(train_df)
     val = pd.read_csv(val_df)
     test = pd.read_csv(test_df)
     vocab = torch.load(vocab)
-    train_dataset = TextDataset(dataset=train, vocab=vocab, max_length=32)
-    val_dataset = TextDataset(dataset=val, vocab=vocab, max_length=32)
-    test_dataset = TextDataset(dataset=test, vocab=vocab, max_length=32)
+    train_dataset = TextDataset(dataset=train, vocab=vocab)
+    val_dataset = TextDataset(dataset=val, vocab=vocab)
+    test_dataset = TextDataset(dataset=test, vocab=vocab)
 
     trainloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     valloader = DataLoader(dataset=val_dataset, batch_size=batch_size)
