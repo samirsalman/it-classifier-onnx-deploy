@@ -27,7 +27,9 @@ class TextDataset(Dataset):
 
     def __getitem__(self, index):
         tokenization = self.vocab(tokens=self.texts[index].split())
-        tokenization = torchtext.transforms.Truncate(max_seq_len=128)(tokenization)
+        tokenization = torchtext.transforms.Truncate(max_seq_len=self.max_length)(
+            tokenization
+        )
         tokenization = torch.tensor(tokenization)
         tokenization = torchtext.transforms.PadTransform(
             max_length=self.max_length, pad_value=self.vocab["<pad>"]

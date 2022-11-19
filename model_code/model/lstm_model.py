@@ -5,6 +5,7 @@ import torch.optim as optim
 from torchtext.vocab import Vocab
 from torchmetrics import Accuracy
 from torchmetrics.classification.f_beta import BinaryF1Score
+import torchtext
 
 
 class LSTMClassifier(pl.LightningModule):
@@ -17,6 +18,7 @@ class LSTMClassifier(pl.LightningModule):
         hidden_size: int = 128,
         lstm_size: int = 256,
         num_layers: int = 5,
+        max_len=str=128,
         *args,
         **kwargs
     ):
@@ -29,7 +31,8 @@ class LSTMClassifier(pl.LightningModule):
         self.hidden_size = hidden_size
         self.lstm_size = lstm_size
         self.num_layers = num_layers
-        self.criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.3, 0.7]))
+        self.criterion = nn.CrossEntropyLoss()
+        self.max_len = max_len
 
         self.embedding = nn.Embedding(
             num_embeddings=len(vocab) + 1,
@@ -47,7 +50,6 @@ class LSTMClassifier(pl.LightningModule):
         self.ffn = nn.Linear(self.hidden_size, 2)
         self.accuracy = Accuracy()
         self.f1_score = BinaryF1Score()
-        self.relu = nn.ReLU()
 
     def init_state(self, x):
         return (
@@ -55,13 +57,12 @@ class LSTMClassifier(pl.LightningModule):
             torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device),
         )
 
-    def forward(self, x, h0):
+    def forward(self, x):
+        h0 = self.init_state(x=x)
         output, state = self.lstm(x, h0)
         output = self.dropout(output)
         output = output[:, -1, :]
-        output = self.relu(output)
         output = self.ffn(output)
-        print(output)
         return output, state
 
     def training_step(self, batch, batch_idx):
@@ -69,12 +70,10 @@ class LSTMClassifier(pl.LightningModule):
         target = batch["target"]
         tokenization = batch["tokenization"]
         emb = self.embedding(tokenization)
-        state = self.init_state(emb)
-        logits, _ = self(emb, state)
+        logits, _ = self(emb)
 
         loss_value = self.criterion(logits, target.to(torch.long))
         preds = torch.argmax(logits, dim=1)
-        print(preds)
         accuracy = self.accuracy(preds, target)
         f_score = self.f1_score(preds, target)
         self.log_dict(
@@ -89,17 +88,13 @@ class LSTMClassifier(pl.LightningModule):
         target = batch["target"]
         tokenization = batch["tokenization"]
         emb = self.embedding(tokenization)
-        state = self.init_state(emb)
-        logits, _ = self(emb, state)
+        logits, _ = self(emb)
 
         loss_value = self.criterion(logits, target.to(torch.long))
         preds = torch.argmax(logits, dim=1)
         accuracy = self.accuracy(preds, target)
         f_score = self.f1_score(preds, target)
 
-        print(
-            "text", text[0], "target", target[0].item(), "prediction", preds[0].item()
-        )
         self.log_dict(
             {"val_loss": loss_value, "val_accuracy": accuracy, "val_f1_score": f_score},
             prog_bar=True,
@@ -113,8 +108,7 @@ class LSTMClassifier(pl.LightningModule):
         target = batch["target"]
         tokenization = batch["tokenization"]
         emb = self.embedding(tokenization)
-        state = self.init_state(emb)
-        logits, _ = self(emb, state)
+        logits, _ = self(emb)
         loss_value = self.criterion(logits, target.to(torch.long))
         preds = torch.argmax(logits, dim=1)
 
@@ -130,6 +124,19 @@ class LSTMClassifier(pl.LightningModule):
             prog_bar=True,
         )
         return loss_value
+
+    def predict(self, text: str):
+        text = text
+        tokenization = self.vocab(tokens=text.split())
+        tokenization = torchtext.transforms.Truncate(max_seq_len=128)(tokenization)
+        tokenization = torch.tensor(tokenization)
+        tokenization = torchtext.transforms.PadTransform(
+            max_length=128, pad_value=self.vocab["<pad>"]
+        )(tokenization)
+        prediction, _ = self(tokenization)
+        preds = torch.argmax(prediction, dim=1)
+        return preds.item()
+        
 
     def configure_optimizers(self):
         return optim.Adam(self.parameters(), lr=self.lr)
