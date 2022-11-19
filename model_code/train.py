@@ -30,9 +30,10 @@ trainer = pl.Trainer(
     deterministic=True,
     max_epochs=3,
     callbacks=[
-        callbacks.ModelCheckpoint(dirpath="model", filename="{epoch}-{val_loss:.2f}}"),
-        callbacks.EarlyStopping(monitor="f1_score", patience=2, mode="max"),
+        callbacks.ModelCheckpoint(dirpath="model", filename="{epoch}-{val_loss:.2f}"),
+        callbacks.EarlyStopping(monitor="val_f1_score", patience=2, mode="max"),
     ],
     precision=16,
+    accelerator="gpu",
 )
 trainer.fit(model=model, train_dataloaders=trainloader, val_dataloaders=valloader)

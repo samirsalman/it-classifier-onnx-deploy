@@ -3,7 +3,8 @@ import torch.nn as nn
 import pytorch_lightning as pl
 import torch.optim as optim
 from torchtext.vocab import Vocab
-import torchmetrics
+from torchmetrics import Accuracy
+from torchmetrics.classification.f_beta import BinaryF1Score
 
 
 class LSTMClassifier(pl.LightningModule):
@@ -28,7 +29,7 @@ class LSTMClassifier(pl.LightningModule):
         self.hidden_size = hidden_size
         self.lstm_size = lstm_size
         self.num_layers = num_layers
-        self.criterion = nn.BCELoss()
+        self.criterion = nn.BCEWithLogitsLoss()
 
         self.embedding = nn.Embedding(
             num_embeddings=len(vocab) + 1,
@@ -44,16 +45,13 @@ class LSTMClassifier(pl.LightningModule):
         )
         self.relu = nn.ReLU()
         self.ffn = nn.Linear(self.lstm_size, 1)
-        self.accuracy = torchmetrics.Accuracy()
-        self.f1_score = torchmetrics.F1Score(
-            num_classes=1, threshold=0.5, average="micro"
-        )
-        self.sigmoid = nn.Sigmoid()
+        self.accuracy = Accuracy()
+        self.f1_score = BinaryF1Score()
 
     def init_state(self, x):
         return (
-            torch.zeros(self.num_layers, x.size(1), self.lstm_size),
-            torch.zeros(self.num_layers, x.size(1), self.lstm_size),
+            torch.zeros(self.num_layers, x.size(1), self.lstm_size).to(self.device),
+            torch.zeros(self.num_layers, x.size(1), self.lstm_size).to(self.device),
         )
 
     def forward(self, x, h0):
@@ -61,7 +59,6 @@ class LSTMClassifier(pl.LightningModule):
         output = output[:, -1, :]
         output = self.relu(output)
         logits = self.ffn(output)
-        logits = self.sigmoid(logits)
         return logits, state
 
     def training_step(self, batch, batch_idx):
@@ -80,9 +77,6 @@ class LSTMClassifier(pl.LightningModule):
             {"loss": loss_value, "train_accuracy": accuracy, "train_f1_score": f_score},
             prog_bar=True,
             on_step=True,
-        )
-        print(
-            "text", text[0], "target", target[0].item(), "prediction", preds[0].item()
         )
         return loss_value
 
