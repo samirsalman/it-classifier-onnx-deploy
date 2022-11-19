@@ -5,6 +5,7 @@ import pandas as pd
 from typing import List, Tuple
 from pathlib import Path
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -27,17 +28,31 @@ class Preprocessor:
         condition = self.dataset[self.target_column].isin(languages_to_remove)
         self.dataset = self.dataset[~condition]
 
-    # not here
-    def create_vocabulary(self):
-        words = dict()
+    def cleaning(self):
+        texts = self.dataset["Text"].to_numpy()
+        cleaned_texts = list()
+        indexes_to_remove = list()
+        for index, sentence in enumerate(texts):
+            # lowercase
+            sentence = sentence.lower()
+            # remove paragraph numbers
+            sentence = re.sub("\[\d*\]", "", sentence.strip())
+            # removing new lines
+            sentence = sentence.replace("\n", " ")
+            # removing tabs
+            sentence = sentence.replace("\t", " ")
+            # removing unicode chars
+            sentence = re.sub("[^\w\s]", "", sentence)
+            cleaned_texts.append(sentence)
+            if isinstance(sentence, float) or len(sentence) < 3:
+                indexes_to_remove.append(index)
+            sentence = sentence.lstrip()
 
-        for sentence in self.dataset[self.text_column].to_numpy():
-            # simple tokenization
-            # lower case sentence
-            for word in sentence.lower().split():
-                if word not in words:  # vocabulary
-                    words[word] = len(words)  # Assign each word with a unique index
-        return words
+        self.dataset["Text"] = cleaned_texts
+        # remove nan
+        self.dataset["Text"].dropna(inplace=True)
+        # remove too short sentences
+        self.dataset.drop(indexes_to_remove, inplace=True)
 
     def split_dataset(
         self, val_size: float = 0.3, test_size: float = 0.1
@@ -77,9 +92,11 @@ class Preprocessor:
 
     @staticmethod
     def save_dataset(dataset: pd.DataFrame, out_path: str):
+        logger.info(f"Saving dataset to {out_path}")
         dataset.to_csv(out_path, index=False)
 
     def create_target_variable(self, target_lang: str = "Italian"):
+        logger.info("Creating target variable")
         self.dataset["target"] = [
             1 if row == target_lang else 0
             for row in self.dataset[self.target_column].to_numpy()
@@ -94,6 +111,8 @@ def preprocess(
     target_column: str = Option("Language", "-y", "--target-col"),
     random_seed: int = Option(12, "-s", "--seed"),
     output_path: str = Option(..., "-o", "--output-path"),
+    languages_to_exclude: List[str] = Option([[], "-e", "--exclude"]),
+    target_language: str = Option("Italian", "-l", "--language"),
 ):
     preprocessor = Preprocessor(
         dataset_path=data_path,
@@ -102,8 +121,9 @@ def preprocess(
         random_seed=random_seed,
     )
 
-    preprocessor.remove_languages()
-    preprocessor.create_target_variable()
+    preprocessor.cleaning()
+    preprocessor.remove_languages(languages_to_remove=languages_to_exclude)
+    preprocessor.create_target_variable(target_lang=target_language)
     train, val, test = preprocessor.split_dataset(
         val_size=val_size, test_size=test_size
     )
