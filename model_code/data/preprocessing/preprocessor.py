@@ -82,10 +82,16 @@ class Preprocessor:
         ), "Dataset size issue"
 
         train, val = train_test_split(
-            self.dataset, test_size=val_examples, random_state=self.seed
+            self.dataset,
+            test_size=val_examples,
+            random_state=self.seed,
+            stratify=self.dataset[self.target_column],
         )
         val, test = train_test_split(
-            val, test_size=test_examples, random_state=self.seed
+            val,
+            test_size=test_examples,
+            random_state=self.seed,
+            stratify=val[self.target_column],
         )
 
         return train, val, test
