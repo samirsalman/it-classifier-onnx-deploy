@@ -24,12 +24,12 @@ class LSTMClassifier(pl.LightningModule):
         self.save_hyperparameters()
         self.vocab = vocab
         self.lr = lr
-        self.dropout = dropout
+        self.dropout = nn.Dropout(dropout)
         self.embedding_size = embedding_size
         self.hidden_size = hidden_size
         self.lstm_size = lstm_size
         self.num_layers = num_layers
-        self.criterion = nn.BCEWithLogitsLoss()
+        self.criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.3, 0.7]))
 
         self.embedding = nn.Embedding(
             num_embeddings=len(vocab) + 1,
@@ -39,27 +39,30 @@ class LSTMClassifier(pl.LightningModule):
 
         self.lstm = nn.LSTM(
             input_size=self.lstm_size,
-            hidden_size=self.lstm_size,
+            hidden_size=self.hidden_size,
             num_layers=self.num_layers,
             dropout=dropout,
+            batch_first=True,
         )
-        self.relu = nn.ReLU()
-        self.ffn = nn.Linear(self.lstm_size, 1)
+        self.ffn = nn.Linear(self.hidden_size, 2)
         self.accuracy = Accuracy()
         self.f1_score = BinaryF1Score()
+        self.relu = nn.ReLU()
 
     def init_state(self, x):
         return (
-            torch.zeros(self.num_layers, x.size(1), self.lstm_size).to(self.device),
-            torch.zeros(self.num_layers, x.size(1), self.lstm_size).to(self.device),
+            torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device),
+            torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(self.device),
         )
 
     def forward(self, x, h0):
         output, state = self.lstm(x, h0)
+        output = self.dropout(output)
         output = output[:, -1, :]
         output = self.relu(output)
-        logits = self.ffn(output)
-        return logits, state
+        output = self.ffn(output)
+        print(output)
+        return output, state
 
     def training_step(self, batch, batch_idx):
         text = batch["text"]
@@ -68,9 +71,10 @@ class LSTMClassifier(pl.LightningModule):
         emb = self.embedding(tokenization)
         state = self.init_state(emb)
         logits, _ = self(emb, state)
-        logits = logits.view(-1)
-        loss_value = self.criterion(logits, target.to(torch.float32))
-        preds = torch.round(logits)
+
+        loss_value = self.criterion(logits, target.to(torch.long))
+        preds = torch.argmax(logits, dim=1)
+        print(preds)
         accuracy = self.accuracy(preds, target)
         f_score = self.f1_score(preds, target)
         self.log_dict(
@@ -87,9 +91,9 @@ class LSTMClassifier(pl.LightningModule):
         emb = self.embedding(tokenization)
         state = self.init_state(emb)
         logits, _ = self(emb, state)
-        logits = logits.view(-1)
-        loss_value = self.criterion(logits, target.to(torch.float32))
-        preds = torch.round(logits)
+
+        loss_value = self.criterion(logits, target.to(torch.long))
+        preds = torch.argmax(logits, dim=1)
         accuracy = self.accuracy(preds, target)
         f_score = self.f1_score(preds, target)
 
@@ -111,9 +115,9 @@ class LSTMClassifier(pl.LightningModule):
         emb = self.embedding(tokenization)
         state = self.init_state(emb)
         logits, _ = self(emb, state)
-        logits = logits.view(-1)
-        loss_value = self.criterion(logits, target.to(torch.float32))
-        preds = torch.round(logits)
+        loss_value = self.criterion(logits, target.to(torch.long))
+        preds = torch.argmax(logits, dim=1)
+
         accuracy = self.accuracy(preds, target)
         f_score = self.f1_score(preds, target)
 

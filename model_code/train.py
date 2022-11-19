@@ -24,6 +24,7 @@ model = LSTMClassifier(
     vocab=torch.load("model_code/data/vocabulary/vocab.pth"),
     dropout=0.2,
     embedding_size=256,
+    lr=2e-2,
 )
 
 trainer = pl.Trainer(
