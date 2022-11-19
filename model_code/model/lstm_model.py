@@ -125,18 +125,7 @@ class LSTMClassifier(pl.LightningModule):
         )
         return loss_value
 
-    def predict(self, text: str):
-        text = text
-        tokenization = self.vocab(tokens=text.split())
-        tokenization = torchtext.transforms.Truncate(max_seq_len=128)(tokenization)
-        tokenization = torch.tensor(tokenization)
-        tokenization = torchtext.transforms.PadTransform(
-            max_length=128, pad_value=self.vocab["<pad>"]
-        )(tokenization)
-        prediction, _ = self(tokenization)
-        preds = torch.argmax(prediction, dim=1)
-        return preds.item()
-        
+
 
     def configure_optimizers(self):
         return optim.Adam(self.parameters(), lr=self.lr)
