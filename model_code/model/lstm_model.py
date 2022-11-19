@@ -58,7 +58,7 @@ class LSTMClassifier(pl.LightningModule):
         )
 
     def forward(self, x):
-        x = self.embedding(x)
+        x = self.embedding(x.long())
         h0 = self.init_state(x=x)
         output, state = self.lstm(x, h0)
         output = self.dropout(output)
