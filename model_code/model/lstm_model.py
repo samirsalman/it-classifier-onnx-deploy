@@ -18,7 +18,7 @@ class LSTMClassifier(pl.LightningModule):
         hidden_size: int = 128,
         lstm_size: int = 256,
         num_layers: int = 5,
-        max_len=str=128,
+        max_len: str = 128,
         *args,
         **kwargs
     ):
@@ -58,6 +58,7 @@ class LSTMClassifier(pl.LightningModule):
         )
 
     def forward(self, x):
+        x = self.embedding(x)
         h0 = self.init_state(x=x)
         output, state = self.lstm(x, h0)
         output = self.dropout(output)
@@ -69,8 +70,7 @@ class LSTMClassifier(pl.LightningModule):
         text = batch["text"]
         target = batch["target"]
         tokenization = batch["tokenization"]
-        emb = self.embedding(tokenization)
-        logits, _ = self(emb)
+        logits, _ = self(tokenization)
 
         loss_value = self.criterion(logits, target.to(torch.long))
         preds = torch.argmax(logits, dim=1)
@@ -87,8 +87,7 @@ class LSTMClassifier(pl.LightningModule):
         text = batch["text"]
         target = batch["target"]
         tokenization = batch["tokenization"]
-        emb = self.embedding(tokenization)
-        logits, _ = self(emb)
+        logits, _ = self(tokenization)
 
         loss_value = self.criterion(logits, target.to(torch.long))
         preds = torch.argmax(logits, dim=1)
@@ -107,8 +106,7 @@ class LSTMClassifier(pl.LightningModule):
         text = batch["text"]
         target = batch["target"]
         tokenization = batch["tokenization"]
-        emb = self.embedding(tokenization)
-        logits, _ = self(emb)
+        logits, _ = self(tokenization)
         loss_value = self.criterion(logits, target.to(torch.long))
         preds = torch.argmax(logits, dim=1)
 
@@ -124,8 +122,6 @@ class LSTMClassifier(pl.LightningModule):
             prog_bar=True,
         )
         return loss_value
-
-
 
     def configure_optimizers(self):
         return optim.Adam(self.parameters(), lr=self.lr)
