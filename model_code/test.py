@@ -11,7 +11,7 @@ def test(
     checkpoint_path: str = Option(..., "-m", "--model"),
     test_df: str = Option("model_code/data/datasets/test.csv", "-T", "--test"),
     vocab: str = Option("model_code/data/vocabulary/vocab.pth", "-v", "--vocab"),
-    gpu: bool = Option(True, "-g", "--gpu"),
+    gpu: bool = Option(False, "-g", "--gpu"),
 ):
     test = pd.read_csv(test_df)
     vocab = torch.load(vocab)
