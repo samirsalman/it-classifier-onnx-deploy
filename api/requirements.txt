@@ -1,2 +1,4 @@
 fastapi==0.87.0
+onnxruntime==1.13.1
 uvicorn>=0.15.0,<0.16.0
+

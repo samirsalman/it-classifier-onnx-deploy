@@ -3,7 +3,8 @@ version: "3.0"
 services:
   api:
     build:
-      context: api
+      context: .
+      dockerfile: api/Dockerfile
     ports:
       - 5000:5000
     volumes:
