@@ -10,7 +10,8 @@ def to_onnx(
 ):
     model = LSTMClassifier.load_from_checkpoint(checkpoint_path=checkpoint)
     input_sample = torch.randint(0, 100, (1, 128))
-    out = Path(out_path).mkdir(parents=True, exist_ok=True)
+    out = Path(out_path)
+    out.mkdir(parents=True, exist_ok=True)
     out = out / "model.onnx"
     model.to_onnx(
         out,
